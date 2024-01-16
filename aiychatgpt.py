@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 from dotenv import load_dotenv
+import getpass
 import locale
 import logging
 import os
@@ -15,9 +16,11 @@ from aiy.cloudspeech import CloudSpeechClient
 from aiy.voice import tts
 
 from openai import OpenAI
-load_dotenv()  # contains OPENAI_API_KEY
-AI = OpenAI()
 
+logging.basicConfig(format='%(asctime)s,%(msecs)d %(levelname)-8s [%(filename)s:%(lineno)d %(funcName)s] %(message)s', datefmt='%Y-%m-%d:%H:%M:%S', level=logging.DEBUG)
+
+load_dotenv("/home/pi/.env")  # contains OPENAI_API_KEY
+AI = OpenAI()
 sentences_text = Queue()
 sentences_mp3 = Queue()
 lock = Lock()
@@ -26,7 +29,7 @@ def converter():
     while True:
         sentence_text = sentences_text.get()
         logging.info(f"Converting '{sentence_text}' to mp3")
-        sentence_mp3 = str(uuid.uuid4()) + ".mp3"
+        sentence_mp3 = str("/tmp/" + uuid.uuid4()) + ".mp3"
         tts = gTTS(sentence_text, lang="nl")
         tts.save(sentence_mp3)
         logging.info(f"Storing '{sentence_text}' as {sentence_mp3}")
@@ -43,7 +46,7 @@ def speaker():
             lock.release()
 
 def main():
-    logging.basicConfig(level=logging.DEBUG)
+    logging.info(f"Running as {getpass.getuser()}")
 
     client = CloudSpeechClient()
 

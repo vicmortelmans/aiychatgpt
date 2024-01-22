@@ -29,7 +29,7 @@ def converter():
     while True:
         sentence_text = sentences_text.get()
         logging.info(f"Converting '{sentence_text}' to mp3")
-        sentence_mp3 = str("/tmp/" + uuid.uuid4()) + ".mp3"
+        sentence_mp3 = f"/tmp/{str(uuid.uuid4())}.mp3"
         tts = gTTS(sentence_text, lang="nl")
         tts.save(sentence_mp3)
         logging.info(f"Storing '{sentence_text}' as {sentence_mp3}")

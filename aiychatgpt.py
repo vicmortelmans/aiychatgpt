@@ -11,9 +11,16 @@ import uuid
 
 from gtts import gTTS
 
-from aiy.board import Board, Led
-from aiy.cloudspeech import CloudSpeechClient
+from util import Button, Led
 from aiy.voice import tts
+from aiy.cloudspeech import CloudSpeechClient
+# to make this work, a change of the aiy module was needed
+# in cloudspeech.py, the hardcoded settings of the audio device are configured
+# to match the AIY Voice HAT, but I'm using some cheap USB audio adapter now
+# AUDIO_SAMPLE_RATE_HZ = 48000
+# AUDIO_FORMAT=AudioFormat(sample_rate_hz=AUDIO_SAMPLE_RATE_HZ,
+#                          num_channels=1,
+#                          bytes_per_sample=2)
 
 from openai import OpenAI
 
@@ -39,8 +46,8 @@ def speaker():
     while True:
         sentence_mp3 = sentences_mp3.get()
         logging.info(f"Speaking {sentence_mp3}")
-        os.system(f"mpg321 {sentence_mp3}") 
-        os.remove(sentence_mp3)
+        os.system(f"madplay {sentence_mp3}") 
+        #os.remove(sentence_mp3)
         if sentences_mp3.empty() and sentences_text.empty(): 
             logging.info("Speech is finished completely")
             lock.release()
@@ -56,12 +63,12 @@ def main():
     speaker_thread.start()
 
     messages = [
-        {"role": "system", "content": "Je bent een vleierige dienaar"}
+        {"role": "system", "content": "Je bent een intellectuele gesprekspartner met conservatieve ideeën"}
     ] 
 
     times_hearing_nothing = 0
 
-    with Board() as board:
+    with Led(channel=17) as led, Button(channel=27) as button:
         while True:
             lock.acquire()
             if times_hearing_nothing > 3:
@@ -71,11 +78,11 @@ def main():
                 messages = [
                     {"role": "system", "content": "Je bent een vleierige dienaar"}
                 ] 
-                board.button.wait_for_press()
-            board.led.state = Led.ON
+                button.wait_for_press()
+            led.state = Led.ON
             logging.info("Start listening")
             text = client.recognize(language_code="nl")
-            board.led.state = Led.OFF
+            led.state = Led.OFF
             if text is None:
                 logging.info('You said nothing.')
                 times_hearing_nothing += 1

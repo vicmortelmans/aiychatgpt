@@ -25,7 +25,7 @@ from aiy.cloudspeech import CloudSpeechClient
 
 from openai import OpenAI
 
-role = "Je bent een stemgestuurde assistent die antwoordt met meerdere korte zinnen die elk niet meer dan 100 lettertekens bevatten." 
+role = "Je bent een stemgestuurde assistent die korte antwoorden geeft." 
 
 logger = logging.getLogger("aichatgpt")
 handler = logging.StreamHandler(stdout)
@@ -61,7 +61,7 @@ def speaker():
         # wait until a new mp3 is added to the queue
         sentence_mp3 = sentences_mp3.get()
         logger.info(f"Speaking {sentence_mp3}")
-        os.system(f"madplay -q {sentence_mp3}") 
+        os.system(f"mpg123 -q {sentence_mp3}") 
         os.remove(sentence_mp3)
         if sentences_mp3.empty() and sentences_text.empty() and not ai_working: 
             logger.info("Speech is finished completely")

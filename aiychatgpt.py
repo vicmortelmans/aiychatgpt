@@ -33,7 +33,7 @@ handler.setFormatter(logging.Formatter(fmt='%(asctime)s,%(msecs)d %(levelname)-8
 logger.addHandler(handler)
 logger.setLevel(logging.DEBUG)
 
-load_dotenv("/home/pi/.env")  # contains OPENAI_API_KEY
+load_dotenv(os.getenv('HOME') + "/.env")  # contains OPENAI_API_KEY
 AI = OpenAI()
 tts_client = texttospeech.TextToSpeechClient()
 sentences_text = Queue()

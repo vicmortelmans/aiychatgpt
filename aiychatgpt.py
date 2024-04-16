@@ -25,7 +25,7 @@ from aiy.cloudspeech import CloudSpeechClient
 
 from openai import OpenAI
 
-role = "Je bent een stemgestuurde assistent die korte antwoorden geeft." 
+role = "Je bent een stemgestuurde assistent die graag nieuwe onderwerpen in het gesprek brengt." 
 
 logger = logging.getLogger("aichatgpt")
 handler = logging.StreamHandler(stdout)
@@ -48,7 +48,7 @@ def converter():
         logger.info(f"Converting '{sentence_text}' to mp3")
         sentence_mp3 = f"/tmp/{str(uuid.uuid4())}.mp3"
         synthesis_input = texttospeech.SynthesisInput(text=sentence_text)
-        voice = texttospeech.VoiceSelectionParams(language_code="nl", ssml_gender=texttospeech.SsmlVoiceGender.NEUTRAL)
+        voice = texttospeech.VoiceSelectionParams(language_code="nl-BE")
         audio_config = texttospeech.AudioConfig(audio_encoding=texttospeech.AudioEncoding.MP3)
         response = tts_client.synthesize_speech(input=synthesis_input, voice=voice, audio_config=audio_config)
         logger.info(f"Storing '{sentence_text}' as {sentence_mp3}")

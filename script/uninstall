@@ -9,7 +9,6 @@ sudo systemctl stop aiychatgpt
 sudo systemctl disable aiychatgpt
 
 echo "=> Removing aiychatgpt service...\n"
-sudo rm -rf /usr/local/bin/aiychatgpt.py
 sudo rm -rf /etc/systemd/system/aiychatgpt.service
 
 echo "Success: aiychatgpt service uninstalled!\n"

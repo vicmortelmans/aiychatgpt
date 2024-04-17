@@ -6,8 +6,9 @@ import locale
 import logging
 import os
 from queue import Queue
+import subprocess
 from sys import stdout
-from threading import Thread, Lock
+from threading import Thread
 import uuid
 
 from google.cloud import texttospeech
@@ -25,7 +26,6 @@ from aiy.cloudspeech import CloudSpeechClient
 
 from openai import OpenAI
 
-role = "Je bent een stemgestuurde assistent die graag nieuwe onderwerpen in het gesprek brengt." 
 
 logger = logging.getLogger("aichatgpt")
 handler = logging.StreamHandler(stdout)
@@ -38,13 +38,18 @@ AI = OpenAI()
 tts_client = texttospeech.TextToSpeechClient()
 sentences_text = Queue()
 sentences_mp3 = Queue()
-lock = Lock()
-ai_working = False
+led = Led(channel=17)
+button = Button(channel=27)
+client = CloudSpeechClient()
+role = "Je bent een stemgestuurde assistent." 
+messages = [ {"role": "system", "content": role} ] 
+state = "IDLE"
+speaking_process = None
 
 def converter():
     while True:
         # wait until a new sentence is added to the queue
-        sentence_text = sentences_text.get()
+        sentence_text = sentences_text.get()  # BLOCKING
         logger.info(f"Converting '{sentence_text}' to mp3")
         sentence_mp3 = f"/tmp/{str(uuid.uuid4())}.mp3"
         synthesis_input = texttospeech.SynthesisInput(text=sentence_text)
@@ -57,80 +62,100 @@ def converter():
         sentences_mp3.put(sentence_mp3)
 
 def speaker():
+    global speaking_process
+
     while True:
         # wait until a new mp3 is added to the queue
-        sentence_mp3 = sentences_mp3.get()
+        sentence_mp3 = sentences_mp3.get()  # BLOCKING
         logger.info(f"Speaking {sentence_mp3}")
-        os.system(f"mpg123 -q {sentence_mp3}") 
+        speaking_process = subprocess.Popen(['mpg123','-q',sentence_mp3])
+        speaking_process.wait()
+        speaking_process = None
         os.remove(sentence_mp3)
-        if sentences_mp3.empty() and sentences_text.empty() and not ai_working: 
+        if sentences_mp3.empty() and sentences_text.empty() and state == "TALKING": 
             logger.info("Speech is finished completely")
-            lock.release()
+            converse()
 
+def converse():
+    global state
+    global button
+    global led
+    global messages
+
+    state = "LISTENING"
+    led.state = Led.ON
+    for i in [1,2,3]:
+        logger.info("Start listening")
+        text = client.recognize(language_code="nl")  # BLOCKING
+        if text:
+            break
+    else:  # no break
+        logger.info("Silence... resetting conversation and waiting for button to start listening again")
+        # reset conversation
+        logger.info("Conversation reset")
+        messages = [
+            {"role": "system", "content": role}
+        ] 
+        state = "IDLE"
+        led.state = Led.OFF
+        return
+    # process question
+    state = "THINKING"
+    led.state = Led.BLINK_3
+    logger.info('You said: "%s"' % text)
+    messages.append({"role": "user", "content": text})
+    completion = AI.chat.completions.create(
+      model="gpt-3.5-turbo",
+      messages=messages,
+      stream=True
+    )
+    answer = ""
+    partial_answer = ""
+    for chunk in completion:
+        if chunk.choices[0].delta.content == None:
+            # no more content; answer is complete
+            sentences_text.put(partial_answer)
+            answer += partial_answer
+            break
+        partial_answer += chunk.choices[0].delta.content
+        if ". " in partial_answer:
+            # submit finished sentence for converting and speaking
+            (sentence, partial_answer) = partial_answer.split(". ", maxsplit=1)
+            sentences_text.put(sentence)
+            answer += sentence
+    logger.info(f"Adding answer to conversation: '{answer}'")
+    messages.append({"role": "assistant", "content": answer})
+    state = "TALKING"
+    led.state = Led.OFF
+
+        
 def main():
-    logger.info(f"Running as {getpass.getuser()}")
+    global state
+    global sentences_text
+    global sentences_mp3
+    global button
+    global speaking_process
 
-    client = CloudSpeechClient()
+    logger.info(f"Running as {getpass.getuser()}")
 
     converter_thread = Thread(target=converter)
     speaker_thread = Thread(target=speaker)
     converter_thread.start()
     speaker_thread.start()
 
-    messages = [
-        {"role": "system", "content": role}
-    ] 
-
-    times_hearing_nothing = 0
-
-    with Led(channel=17) as led, Button(channel=27) as button:
-        while True:
-            lock.acquire()
-            if times_hearing_nothing > 3:
-                logger.info("Silence... resetting conversation and waiting for button to start listening again")
-                times_hearing_nothing = 0
-                # reset conversation
-                messages = [
-                    {"role": "system", "content": role}
-                ] 
-                button.wait_for_press()
-            led.state = Led.ON
-            logger.info("Start listening")
-            text = client.recognize(language_code="nl")
-            led.state = Led.OFF
-            if text is None:
-                logger.info('You said nothing.')
-                times_hearing_nothing += 1
-                lock.release()
-                continue
-
-            logger.info('You said: "%s"' % text)
-
-            messages.append({"role": "user", "content": text})
-
-            ai_working = True
-            completion = AI.chat.completions.create(
-              model="gpt-3.5-turbo",
-              messages=messages,
-              stream=True
-            )
-
-            answer = ""
-
-            for chunk in completion:
-                if chunk.choices[0].delta.content == None:
-                    # no more content; answer is complete
-                    sentences_text.put(answer)
-                    ai_working = False
-                    break
-                answer += chunk.choices[0].delta.content
-                if ". " in answer:
-                    # submit finished sentence for converting and speaking
-                    (sentence, answer) = answer.split(". ", maxsplit=1)
-                    sentences_text.put(sentence)
-
-            logger.info(f"Adding answer to conversation: '{answer}'")
-            messages.append({"role": "assistant", "content": answer})
+    while True:
+        logger.info("Waiting for button")
+        button.wait_for_press()  # BLOCKING
+        if state == "IDLE":
+            converse()
+        elif state == "TALKING":
+            state = "CANCELLING"
+            logger.info("Clearing talking queues")
+            sentences_text.queue.clear()
+            sentences_mp3.queue.clear()
+            if speaking_process:
+                speaking_process.kill()
+            converse()
 
 
 if __name__ == '__main__':

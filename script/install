@@ -4,10 +4,6 @@ set -e
 
 cd "$(dirname "$0")/.."
 
-echo "=> Installing aiychatgpt script...\n"
-sudo cp aiychatgpt.py /usr/local/bin/
-sudo chmod +x /usr/local/bin/aiychatgpt.py
-
 echo "=> Starting aiychatgpt service...\n"
 sudo cp aiychatgpt.service /etc/systemd/system/
 sudo chmod 644 /etc/systemd/system/aiychatgpt.service

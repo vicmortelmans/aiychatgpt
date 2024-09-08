@@ -121,6 +121,7 @@ def converse():
         if ". " in partial_answer:
             # submit finished sentence for converting and speaking
             (sentence, partial_answer) = partial_answer.split(". ", maxsplit=1)
+            sentence += ". "
             sentences_text.put(sentence)
             answer += sentence
     logger.info(f"Adding answer to conversation: '{answer}'")

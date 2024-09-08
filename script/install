@@ -5,10 +5,9 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "=> Starting aiychatgpt service...\n"
-sudo cp aiychatgpt.service /etc/systemd/system/
-sudo chmod 644 /etc/systemd/system/aiychatgpt.service
+cp aiychatgpt.service ~/.config/systemd/user/
 
-sudo systemctl start aiychatgpt
-sudo systemctl enable aiychatgpt
+systemctl enable --user aiychatgpt
+systemctl start --user aiychatgpt
 
 echo "Success: aiychatgpt script installed!\n"

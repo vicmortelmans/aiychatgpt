@@ -5,10 +5,10 @@ set -e
 cd "$(dirname "$0")/.."
 
 echo "=> Stopping aiychatgpt service...\n"
-sudo systemctl stop aiychatgpt
-sudo systemctl disable aiychatgpt
+systemctl stop --user aiychatgpt
+systemctl disable --user aiychatgpt
 
 echo "=> Removing aiychatgpt service...\n"
-sudo rm -rf /etc/systemd/system/aiychatgpt.service
+rm -rf ~/.config/systemd/user/aiychatgpt.service
 
 echo "Success: aiychatgpt service uninstalled!\n"

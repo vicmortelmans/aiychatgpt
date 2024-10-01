@@ -2,7 +2,7 @@
 Description=Use Voice Kit button to start talking to ChatGPT
 
 [Service]
-Type=forking
+Type=simple
 #User=vic
 #Group=vic
 #SupplementaryGroups=audio
